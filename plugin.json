@@ -2,7 +2,7 @@
     "name": "Whispering Cat",
     "version": "0.0.1",
     "description": "A plugin to transcript audio files to text",
-    "author": "zAlweNy26",
+    "author_name": "zAlweNy26",
     "author_url": "https://github.com/zAlweNy26",
     "plugin_url": "https://github.com/Furrmidable-Crew/WhisperingCat",
     "tags": "cat, audio, transcript, openai, speech, text",
