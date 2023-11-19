@@ -1,14 +1,70 @@
-from cat.mad_hatter.decorators import hook, plugin
-from cat.plugins.whispering_cat.parser import AudioParser
+import os
+import requests
+
+from urllib.parse import urlparse
 from pydantic import BaseModel, Field
+from tempfile import TemporaryFile
+
+from cat.log import log
+from cat.mad_hatter.decorators import hook, plugin
+from cat.plugins.whispering_cat.audio_parser import AudioParser, transcript
+
 
 class Settings(BaseModel):
     api_key: str = Field(title="API Key", description="The API key for OpenAI's transcription API.", default="")
     language: str = Field(title="Language", description="The language of the audio file in ISO-639-1 format. Defaults to English (en).", default="en")
+    audio_key: str = Field(title="Audio Key", default="whispering-cat")
 
 @plugin
 def settings_schema():   
     return Settings.schema()
+
+@hook
+def before_cat_reads_message(message_json, cat):
+
+    settings = cat.mad_hatter.plugins["whispering_cat"].load_settings()
+
+    if settings == {}:
+        log.error("No configuration found for WhisperingCat")
+        return message_json
+
+
+    if settings["audio_key"] not in message_json.keys():
+        return message_json
+    
+    file_path = message_json[settings["audio_key"]]
+
+    # Check if it's an url
+    parsed_file = urlparse(file_path)
+    is_url = all([parsed_file.scheme, parsed_file.netloc])
+
+    if is_url:
+        # Get the file
+        res = requests.get(file_path)
+
+        # write it in a temporary file
+        file = TemporaryFile('wb+')
+        file.write(res.content)
+        file.seek(0)
+
+    else:
+        # Othewhise open the file 
+        file = open(file_path)
+        
+    # Get the file type
+    file_type = os.path.splitext(os.path.basename(file_path))[1]
+
+    # Making the transcription 
+    transcription = transcript(
+        key=settings["api_key"],
+        lang=settings["language"],
+        file=(file_type, file)
+    )   
+
+    # Update the text in input
+    message_json["text"] = transcription
+    return message_json
+
 
 @hook
 def before_rabbithole_splits_text(text: list, cat):
