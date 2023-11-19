@@ -1,5 +1,5 @@
 from cat.mad_hatter.decorators import hook, plugin
-from cat.plugins.whispering_cat.parser import AudioParser
+from cat.plugins.whispering_cat.audio_parser import AudioParser
 from pydantic import BaseModel, Field
 
 class Settings(BaseModel):
@@ -38,6 +38,7 @@ def rabbithole_instantiates_parsers(file_handlers: dict, cat) -> dict:
     new_file_handlers["audio/mpeg"] = AudioParser(settings["api_key"], settings["language"])
     new_file_handlers["audio/webm"] = AudioParser(settings["api_key"], settings["language"])
     new_file_handlers["audio/wav"] = AudioParser(settings["api_key"], settings["language"])
+    new_file_handlers["audio/x-wav"] = AudioParser(settings["api_key"], settings["language"])
     new_file_handlers["audio/ogg"] = AudioParser(settings["api_key"], settings["language"])
     new_file_handlers["video/mp4"] = AudioParser(settings["api_key"], settings["language"])
 
