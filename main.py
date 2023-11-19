@@ -30,10 +30,8 @@ def rabbithole_instantiates_parsers(file_handlers: dict, cat) -> dict:
     settings = cat.mad_hatter.plugins["whispering_cat"].load_settings()
 
     if settings == {}:
-        settings = {
-            "api_key": "",
-            "language": "en"
-        }
+        log.error("No configuration found for WhisperingCat")
+        return
 
     new_file_handlers["audio/mpeg"] = AudioParser(settings["api_key"], settings["language"])
     new_file_handlers["audio/webm"] = AudioParser(settings["api_key"], settings["language"])
