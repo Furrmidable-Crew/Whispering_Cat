@@ -1,8 +1,8 @@
-from typing import Iterator
-from langchain.document_loaders.base import BaseBlobParser
-from langchain.document_loaders.blob_loaders import Blob
-from langchain.schema import Document
 import requests
+from typing import Iterator
+from langchain.schema import Document
+from langchain.document_loaders.blob_loaders import Blob
+from langchain.document_loaders.base import BaseBlobParser
 
 def transcript(key, lang, file):
     # TODO: Check if the file is too large for OpenAI (max 25mb)
@@ -17,6 +17,7 @@ def transcript(key, lang, file):
         }
     )
     json = res.json()
+    
     return json['text']
 
 class AudioParser(BaseBlobParser):
