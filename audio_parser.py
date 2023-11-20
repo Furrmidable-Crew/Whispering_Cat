@@ -6,18 +6,16 @@ import requests
 
 def transcript(key, lang, file):
     # TODO: Check if the file is too large for OpenAI (max 25mb)
-    res = requests.post(
-                    "https://api.openai.com/v1/audio/transcriptions", 
-                    headers={
-                        "Authorization": f"Bearer {key}"
-                    }, files={
-                        "file": file
-                    },
-                    data= {
-                        "model": "whisper-1",
-                        "language": lang
-                    }
-                )
+    res = requests.post("https://api.openai.com/v1/audio/transcriptions", 
+        headers = {
+            "Authorization": f"Bearer {key}"
+        }, files = {
+            "file": file
+        }, data = {
+            "model": "whisper-1",
+            "language": lang
+        }
+    )
     json = res.json()
     return json['text']
 
