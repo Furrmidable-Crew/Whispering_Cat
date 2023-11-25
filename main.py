@@ -80,6 +80,7 @@ def rabbithole_instantiates_parsers(file_handlers: dict, cat) -> dict:
 
     if settings == {}:
         log.error("No configuration found for WhisperingCat")
+        cat.send_ws_message("You did not configure the API key for the transcription API!", "chat")
         return
 
     new_file_handlers["audio/ogg"] = AudioParser(settings["api_key"], settings["language"])
