@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from tempfile import TemporaryFile
 from cat.log import log
 from cat.mad_hatter.decorators import hook, plugin
-from cat.plugins.whispering_cat.audio_parser import AudioParser, transcript
+from .audio_parser import AudioParser, transcript
 
 
 class Settings(BaseModel):
