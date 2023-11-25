@@ -10,8 +10,8 @@ from .audio_parser import AudioParser, transcript
 
 class Settings(BaseModel):
     api_key: str = Field(title="API Key", description="The API key for OpenAI's transcription API.", default="")
-    language: str = Field(title="Language", description="The language of the audio file in ISO-639-1 format. Defaults to English (en).", default="en")
-    audio_key: str = Field(title="Audio Key", description="The key for the WebSocket object to recognize additional content", default="whispering_cat")
+    language: str = Field(title="Language", description="The language of the audio file in ISO-639-1 format. Defaults to 'en' (English).", default="en")
+    audio_key: str = Field(title="Audio Key", description="The key for the WebSocket object to recognize additional content. Defaults to 'whispering_cat'.", default="whispering_cat")
 
 @plugin
 def settings_schema():   
@@ -80,11 +80,11 @@ def rabbithole_instantiates_parsers(file_handlers: dict, cat) -> dict:
 
     if settings == {}:
         log.error("No configuration found for WhisperingCat")
-        cat.send_ws_message("You did not configure the API key for the transcription API!", "chat")
+        cat.send_ws_message("You did not configure the API key for the transcription API!", "notification")
         return
 
-    new_file_handlers["audio/ogg"] = AudioParser(settings["api_key"], settings["language"])
     new_file_handlers["video/mp4"] = AudioParser(settings["api_key"], settings["language"])
+    new_file_handlers["audio/ogg"] = AudioParser(settings["api_key"], settings["language"])
     new_file_handlers["audio/wav"] = AudioParser(settings["api_key"], settings["language"])
     new_file_handlers["audio/webm"] = AudioParser(settings["api_key"], settings["language"])
     new_file_handlers["audio/mpeg"] = AudioParser(settings["api_key"], settings["language"])
