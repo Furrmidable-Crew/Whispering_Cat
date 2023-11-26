@@ -5,7 +5,8 @@ from langchain.document_loaders.blob_loaders import Blob
 from langchain.document_loaders.base import BaseBlobParser
 
 def transcript(key, lang, file):
-    # TODO: Check if the file is too large for OpenAI (max 25mb)
+    if file[1] > 25 * 1000000:
+        return "The audio is too large for OpenAI to process."
     res = requests.post("https://api.openai.com/v1/audio/transcriptions", 
         headers = {
             "Authorization": f"Bearer {key}"
