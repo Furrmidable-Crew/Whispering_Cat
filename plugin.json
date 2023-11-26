@@ -1,6 +1,6 @@
 {
     "name": "Whispering Cat",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "A plugin to transcript audio files to text. Just upload an audio file and wait for the response! The accepted audio formats are: `mp3`, `wav`, `m4a`, `mpga`, `ogg`, `webm`, `mpeg`, `mp4`.",
     "author_name": "zAlweNy26",
     "author_url": "https://github.com/zAlweNy26",
