@@ -52,7 +52,7 @@ def before_cat_reads_message(message_json, cat):
     transcription = transcript(
         key=settings["api_key"],
         lang=settings["language"],
-        file=(file_type, file)
+        file=(file_type, file.read())
     )   
 
     # Update the text in input
