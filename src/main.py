@@ -1,25 +1,13 @@
-import os
-import requests
-from urllib.parse import urlparse
-from pydantic import BaseModel, Field
-from tempfile import TemporaryFile
 from cat.log import log
-from cat.mad_hatter.decorators import hook, plugin
-from .audio_parser import AudioParser, transcript
+from cat.mad_hatter.decorators import hook
 
+from .audio_parser import AudioParser
+from .transcript import process_audio_file
 
-class Settings(BaseModel):
-    api_key: str = Field(title="API Key", description="The API key for OpenAI's transcription API.", default="")
-    language: str = Field(title="Language", description="The language of the audio file in ISO-639-1 format. Defaults to 'en' (English).", default="en")
-    audio_key: str = Field(title="Audio Key", description="The key for the WebSocket object to recognize additional content. Defaults to 'whispering_cat'.", default="whispering_cat")
-
-@plugin
-def settings_schema():   
-    return Settings.schema()
 
 @hook
 def before_cat_reads_message(message_json, cat):
-    settings = cat.mad_hatter.plugins["whispering_cat"].load_settings()
+    settings = cat.mad_hatter.get_plugin().load_settings()
 
     if settings == {}:
         log.error("No configuration found for WhisperingCat")
@@ -30,35 +18,10 @@ def before_cat_reads_message(message_json, cat):
     
     file_path = message_json[settings["audio_key"]]
 
-    # Check if it's an url
-    parsed_file = urlparse(file_path)
-    is_url = all([parsed_file.scheme, parsed_file.netloc])
-
-    if is_url:
-        # Get the file
-        res = requests.get(file_path)
-        # write it in a temporary file
-        file = TemporaryFile('wb+')
-        file.write(res.content)
-        file.seek(0)
-    else:
-        # Othewhise open the file 
-        file = open(file_path)
-        
-    # Get the file type
-    file_type = os.path.splitext(os.path.basename(file_path))[1]
-
-    # Making the transcription 
-    transcription = transcript(
-        key=settings["api_key"],
-        lang=settings["language"],
-        file=(file_type, file.read())
-    )   
-
     # Update the text in input
-    message_json["text"] = transcription
+    message_json["text"] = process_audio_file(file_path, settings)
     return message_json
-
+   
 
 @hook
 def before_rabbithole_splits_text(text: list, cat):
@@ -72,11 +35,12 @@ def before_rabbithole_splits_text(text: list, cat):
 
     return text
 
+
 @hook
 def rabbithole_instantiates_parsers(file_handlers: dict, cat) -> dict:
     new_file_handlers = file_handlers
 
-    settings = cat.mad_hatter.plugins["whispering_cat"].load_settings()
+    settings = cat.mad_hatter.get_plugin().load_settings()
 
     if settings == {}:
         log.error("No configuration found for WhisperingCat")
