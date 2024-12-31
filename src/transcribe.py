@@ -3,27 +3,51 @@ import re
 import base64
 import requests
 from io import BytesIO
-from tempfile import TemporaryFile
 from urllib.parse import urlparse
 from typing import Dict, Tuple, Union, BinaryIO
 
+from .local_whisper import LocalWhisper
+
 
 def process_audio_file(file_path: str, settings: Dict) -> str:
-    # Get the file handle
-    file_info = _get_file_handle(file_path)
-    if not file_info:
+    # Get the file handle and MIME type
+    file_info: Union[Tuple[BinaryIO, str], None] = _get_file_handle(file_path)
+
+    if file_info is None:
         raise ValueError("Unsupported file type or invalid file path.")
     
     file, mime_type = file_info
 
-    return transcript(
-        key=settings["api_key"],
-        lang=settings["language"],
-        file=(file.name, file.read(), mime_type)
-    )
+    if settings.get("use_local_model"):
+        transcription = _transcribe_local(
+            file=file,
+            settings=settings 
+        )
+    else: 
+        if not settings.get("api_key"):
+            raise ValueError("API key is required for OpenAI's transcription API")
+
+        transcription = _transcribe(
+            file=(file.name, file.read(), mime_type),
+            settings=settings
+        )
+
+    # Closing the file even if BytesIO doesn't 
+    # require it to free up resources
+    file.close()
+
+    return transcription
 
 
-def transcript(key, lang, file):
+def _transcribe(file: Tuple[str, bytes, str], settings: Dict) -> str:
+    key = settings["api_key"]
+    lang = settings["language"]
+
+    if not key:
+        raise ValueError("API key is required for OpenAI's transcription API")
+
+    # TODO: Split the file if it exceeds the maximum limit and transcribe in parts
+
     if len(file[1]) > 25 * 1000000:
        raise ValueError("File size exceeds the maximum limit of 25MB")
     res = requests.post("https://api.openai.com/v1/audio/transcriptions", 
@@ -36,9 +60,26 @@ def transcript(key, lang, file):
             "language": lang
         }
     )
+
     json = res.json()
-    
+
+    if res.status_code != 200:
+        error = json.get("error").get("message")
+        raise ValueError(f"Failed to transcribe the audio: {error}")
+
     return json['text']
+
+
+def _transcribe_local(file: BinaryIO, settings: Dict) -> str:
+    whisper = LocalWhisper.get_instance(settings)
+    segment, _ = whisper.transcribe(
+        file, 
+        language=settings["language"], 
+        multilingual=True,
+        vad_filter=True # Remove silence
+    )
+    result = "".join([str(s.text) for s in segment])
+    return result
 
 
 def _get_file_handle(file_path: str) -> Union[Tuple[BinaryIO, str], None]:
@@ -79,7 +120,7 @@ def _handle_data_uri(data_uri: str) -> Union[Tuple[BinaryIO, str], None]:
     base64_data = data_uri.split(',')[1]
     audio_bytes = base64.b64decode(base64_data)
     
-    # Create a file-like object from the decoded audio data
+    # Using BytesIO to create a file-like object
     file = BytesIO(audio_bytes)
     file.name = f'audio.{file_type}'
     
@@ -92,22 +133,29 @@ def _handle_url(url: str) -> Union[Tuple[BinaryIO, str], None]:
     if res.status_code != 200:
         raise ValueError(f"Failed to fetch the file from {url}")
 
-    file = TemporaryFile('wb+')
-    # Write the file content to a temporary file
-    file.write(res.content)
-    # Reset the file pointer to the beginning
-    file.seek(0)
+    file = BytesIO(res.content)
     file.name = os.path.basename(url)
-    # Get the MIME type and file extension
     mime_type = res.headers.get('Content-Type')
 
     return file, mime_type
 
 
 def _handle_local_file(file_path: str) -> Union[Tuple[BinaryIO, str], None]:
-    file = open(file_path)
+    with open(file_path, 'rb') as f:
+        content = f.read()
+    
+    file = BytesIO(content)
     file.name = os.path.basename(file_path)
-    file_ext = os.path.splitext(file.name)[1][1:]
-    mime_type = f'audio/{file_ext}'
+
+    ext_to_mime = {
+        'wav': 'audio/x-wav',
+        'mp3': 'audio/mpeg',
+        'm4a': 'audio/mp4',
+        'ogg': 'audio/ogg',
+        'webm': 'audio/webm'
+    }
+
+    file_ext = file.name.split('.')[-1]
+    mime_type = "audio/" + ext_to_mime.get(file_ext)
 
     return file, mime_type
