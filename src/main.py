@@ -1,27 +1,37 @@
 from cat.log import log
 from cat.mad_hatter.decorators import hook
+from cat.convo.messages import UserMessage
 
 from .audio_parser import AudioParser
-from .transcript import process_audio_file
+from .transcribe import process_audio_file
 
 
 @hook
-def before_cat_reads_message(message_json, cat):
+def before_cat_reads_message(message: UserMessage, cat):
     settings = cat.mad_hatter.get_plugin().load_settings()
 
     if settings == {}:
         log.error("No configuration found for WhisperingCat")
-        return message_json
+        return
 
-    if settings["audio_key"] not in message_json.keys():
-        return message_json
-    
-    file_path = message_json[settings["audio_key"]]
+    if settings["audio_key"] not in message.keys():
+        return 
 
-    # Update the text in input
-    message_json["text"] = process_audio_file(file_path, settings)
-    return message_json
-   
+    file_path = message.get(settings["audio_key"])
+    if file_path is None:
+        return
+        
+    try:
+        # Update the text in input whis the transcribed audio
+        message.text = process_audio_file(file_path, settings)
+    except ValueError as e:
+        cat.send_ws_message(str(e), "notification")
+    except Exception as e:
+        log.error(f"An error occurred while processing the audio: {e}")
+        cat.send_ws_message("An error occurred while processing the audio.", "error")
+
+    return message
+
 
 @hook
 def before_rabbithole_splits_text(text: list, cat):
@@ -30,8 +40,11 @@ def before_rabbithole_splits_text(text: list, cat):
     if is_audio:
         content = text[0].page_content
         name = text[0].metadata["name"]
-        cat.send_ws_message(f"""The audio \"`{name}`\" says:
-                            \"{content}\"""", "chat")
+        cat.send_ws_message(
+            f"""The audio \"`{name}`\" says:
+                            \"{content}\"""",
+            "chat",
+        )
 
     return text
 
@@ -42,16 +55,18 @@ def rabbithole_instantiates_parsers(file_handlers: dict, cat) -> dict:
 
     settings = cat.mad_hatter.get_plugin().load_settings()
 
-    if settings == {}:
-        log.error("No configuration found for WhisperingCat")
-        cat.send_ws_message("You did not configure the API key for the transcription API!", "notification")
-        return
+    # Check if the plugin have settings
+    # And that the API key is set if the local model is not used
+    if not settings:
+        raise ValueError("No configuration found for WhisperingCat")
+    if not settings["api_key"] and not settings["use_local_model"]:
+        raise ValueError("API key is required for OpenAI's transcription API, please set it in the plugin settings or use a local model")
 
-    new_file_handlers["video/mp4"] = AudioParser(settings["api_key"], settings["language"])
-    new_file_handlers["audio/ogg"] = AudioParser(settings["api_key"], settings["language"])
-    new_file_handlers["audio/wav"] = AudioParser(settings["api_key"], settings["language"])
-    new_file_handlers["audio/webm"] = AudioParser(settings["api_key"], settings["language"])
-    new_file_handlers["audio/mpeg"] = AudioParser(settings["api_key"], settings["language"])
-    new_file_handlers["audio/x-wav"] = AudioParser(settings["api_key"], settings["language"])
+    new_file_handlers["video/mp4"] = AudioParser(settings)
+    new_file_handlers["audio/ogg"] = AudioParser(settings)
+    new_file_handlers["audio/wav"] = AudioParser(settings)
+    new_file_handlers["audio/webm"] = AudioParser(settings)
+    new_file_handlers["audio/mpeg"] = AudioParser(settings)
+    new_file_handlers["audio/x-wav"] = AudioParser(settings)
 
     return new_file_handlers
