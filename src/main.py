@@ -14,24 +14,21 @@ def before_cat_reads_message(message: UserMessage, cat):
         log.error("No configuration found for WhisperingCat")
         return
 
-    if settings["audio_key"] not in message.keys():
-        return 
-
-    file_path = message.get(settings["audio_key"])
-    if file_path is None:
+    if message.audio is None:
+        log.debug("No audio found in the message")
         return
         
     try:
         # Update the text in input whis the transcribed audio
-        message.text = process_audio_file(file_path, settings)
+        message.text = process_audio_file(message.audio, settings)
     except ValueError as e:
+        log.error(str(e))
         cat.send_ws_message(str(e), "notification")
     except Exception as e:
         log.error(f"An error occurred while processing the audio: {e}")
         cat.send_ws_message("An error occurred while processing the audio.", "error")
 
     return message
-
 
 @hook
 def before_rabbithole_splits_text(text: list, cat):

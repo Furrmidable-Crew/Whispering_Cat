@@ -11,11 +11,8 @@ from .local_whisper import LocalWhisper
 
 def process_audio_file(file_path: str, settings: Dict) -> str:
     # Get the file handle and MIME type
-    file_info: Union[Tuple[BinaryIO, str], None] = _get_file_handle(file_path)
+    file_info: Tuple[BinaryIO, str] = _get_file_handle(file_path)
 
-    if file_info is None:
-        raise ValueError("Unsupported file type or invalid file path.")
-    
     file, mime_type = file_info
 
     if settings.get("use_local_model"):
@@ -156,6 +153,10 @@ def _handle_local_file(file_path: str) -> Union[Tuple[BinaryIO, str], None]:
     }
 
     file_ext = file.name.split('.')[-1]
+
+    if file_ext not in ext_to_mime.keys():
+        raise ValueError(f"Unsupported file type: {file_ext}")
+    
     mime_type = "audio/" + ext_to_mime.get(file_ext)
 
     return file, mime_type

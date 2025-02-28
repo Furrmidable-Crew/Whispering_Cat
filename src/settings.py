@@ -1,8 +1,10 @@
+from pathlib import Path
 from enum import Enum
 
 import pycountry
 from pydantic import BaseModel, Field, SecretStr, model_validator
 
+from cat.mad_hatter.mad_hatter import MadHatter
 from cat.mad_hatter.decorators import plugin, hook
 
 from .transcribe import LocalWhisper
@@ -84,7 +86,7 @@ class Settings(BaseModel):
     )
 
     compute_type: ComputeType = Field(
-        title="Performance Mode",
+        title="Precision",
         description="FLOAT32 = most accurate, FLOAT16 = balanced, INT8 = fastest",
         default=ComputeType.FLOAT32,
     )
@@ -93,12 +95,6 @@ class Settings(BaseModel):
         title="Custom Model Path",
         description="Optional: Custom model location or Hugging Face model ID, if 'Other' is selected in Model Size",
         default="",
-    )
-
-    audio_key: str = Field(
-        title="Audio Input Source",
-        description="WebSocket key for audio input (advanced setting)",
-        default="audio",
     )
 
     @model_validator(mode="after")
@@ -111,7 +107,7 @@ class Settings(BaseModel):
     def validate_api_key(self):
         if not self.use_local_model and not self.api_key:
             raise ValueError("OpenAI API Key is required for online mode")
-        return self      
+        return self
 
 
 @plugin
@@ -122,6 +118,9 @@ def settings_model() -> Settings:
 @plugin
 def activated(plugin) -> None:
     """Setup the local model at plugin activation"""
+    # Set the download path for the local models
+    LocalWhisper.download_path = Path(plugin.path) / "models"
+
     settings = plugin.load_settings()
     if settings and settings["use_local_model"]:
         LocalWhisper.get_instance(settings)
@@ -130,6 +129,9 @@ def activated(plugin) -> None:
 @hook(priority=0)
 def after_cat_bootstrap(cat) -> None:
     """Setup the local model at startup"""
+    # Set the download path for the local models
+    LocalWhisper.download_path = Path(MadHatter().get_plugin().path) / "models"
+
     settings = cat.mad_hatter.get_plugin().load_settings()
     if settings and settings["use_local_model"]:
         LocalWhisper.get_instance(settings)
