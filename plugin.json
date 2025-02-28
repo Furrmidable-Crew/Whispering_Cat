@@ -1,10 +1,11 @@
 {
     "name": "Whispering Cat",
-    "version": "0.0.3",
+    "version": "0.1.0",
     "description": "A plugin to transcript audio files to text. Just upload an audio file and wait for the response! The accepted audio formats are: `mp3`, `wav`, `m4a`, `mpga`, `ogg`, `webm`, `mpeg`, `mp4`.",
     "author_name": "zAlweNy26",
     "author_url": "https://github.com/zAlweNy26",
     "plugin_url": "https://github.com/Furrmidable-Crew/Whispering_Cat",
-    "tags": "cat, audio, transcript, openai, speech, text",
-    "thumb": "https://raw.githubusercontent.com/Furrmidable-Crew/Whispering_Cat/main/whispering_cat_logo.png"
+    "tags": "speech-to-text, audio, speech, transcript, openai, whisper, faster-whisper",
+    "thumb": "https://raw.githubusercontent.com/Furrmidable-Crew/Whispering_Cat/main/whispering_cat_logo.png",
+    "min_cat_version": "1.8"
 }
