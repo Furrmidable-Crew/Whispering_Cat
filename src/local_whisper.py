@@ -1,66 +1,70 @@
+import threading
 from typing import Dict
-from pathlib import Path
 
 from faster_whisper import WhisperModel
 from faster_whisper.utils import download_model
 from huggingface_hub.file_download import LocalEntryNotFoundError
 
 from cat.log import log
-from cat.utils import get_base_path
-
 
 class LocalWhisper:
     """Singleton class to manage the local Whisper model instance."""
    
-    whisper = None
-    current_model = None
-    download_path = Path(get_base_path()) / "data" / "whispering_cat" / "models"
-
+    __whisper = None
+    download_path = None
+    __current_settings = None
+    __lock = threading.Lock()
+    
     @staticmethod
     def get_instance(settings: Dict):
         """Get the Whisper model instance."""
-        model = LocalWhisper._get_model_id(settings)
-        device = settings["device"]
-        compute_type = settings["compute_type"]
-
-        # Return the existing instance if the model is already loaded 
-        if (LocalWhisper.whisper is not None) and (LocalWhisper.current_model == model):
-            return LocalWhisper.whisper
+        # Lock to prevent multiple threads from creating the model
+        # at the same time
+        with LocalWhisper.__lock:
+            # Return the existing instance if the model is already loaded 
+            if (LocalWhisper.__whisper is not None) and (LocalWhisper.__current_settings == settings):
+                return LocalWhisper.__whisper
         
+            LocalWhisper.__current_settings = settings
+            LocalWhisper.create_new_whisper(settings)
+            return LocalWhisper.__whisper
+       
+    @staticmethod
+    def create_new_whisper(settings: Dict):
+        """Create a new Whisper model instance."""
+        model = LocalWhisper._get_model_id(settings)
+                
         # Download the model if it's not already downloaded
-        if not LocalWhisper._model_downloaded(model):
+        if not LocalWhisper.is_model_downloaded(model):
             log.info(f"Downloading Whisper model `{model}`...")
             download_model(
                 model,
                 cache_dir=LocalWhisper.download_path
             )
 
-        # Update the current model
-        LocalWhisper.current_model = model
-
         # Free up resources by unloading the previous model
-        old_whisper = LocalWhisper.whisper
+        old_whisper = LocalWhisper.__whisper
         del old_whisper
 
-        # Load the new model
         log.info(f"Loading local Whisper model `{model}`...")
-        LocalWhisper.whisper = WhisperModel(
+        # Load the new model
+        LocalWhisper.__whisper = WhisperModel(
             model_size_or_path=model,
-            device=device,
-            compute_type=compute_type,
-            download_root=LocalWhisper.download_path
+            device=settings["device"],
+            compute_type=settings["compute_type"],
+            num_workers=settings["n_workers"],
+            download_root=LocalWhisper.download_path,
+            local_files_only=True
         )
-
-        return LocalWhisper.whisper
     
     @staticmethod
-    def _model_downloaded(model: str) -> bool:
+    def is_model_downloaded(model: str) -> bool:
         try:
             # Check if the model is already downloaded
             download_model(
                 model,
                 local_files_only=True,
-                cache_dir=LocalWhisper.download_path
+                cache_dir=LocalWhisper.download_path,
             )
             return True
         except LocalEntryNotFoundError:

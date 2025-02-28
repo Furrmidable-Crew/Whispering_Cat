@@ -85,6 +85,13 @@ class Settings(BaseModel):
         default=Device.AUTO,
     )
 
+    n_workers: int = Field(
+        title="Number of Workers",
+        description="Number of workers for parallel processing, faster with more workers but may consume more resources",
+        default=1,
+        ge=1,
+    )
+
     compute_type: ComputeType = Field(
         title="Precision",
         description="FLOAT32 = most accurate, FLOAT16 = balanced, INT8 = fastest",
